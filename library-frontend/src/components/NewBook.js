@@ -13,17 +13,7 @@ const NewBook = (props) => {
   const [ addBook ] = useMutation(ADD_BOOK, {
     refetchQueries: [
       { query: ALL_AUTHORS }
-    ],
-    update: (store, response) => {
-      const data = store.readQuery({ query: ALL_BOOKS })
-      store.writeQuery({
-        query: ALL_BOOKS,
-        data: {
-          ...data,
-          allBooks: [ ...data.allBooks, response.data.addBook ]
-        }
-      })
-    }
+    ]
   })
 
   if (!props.show) {
