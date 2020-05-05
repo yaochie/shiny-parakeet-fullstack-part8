@@ -1,14 +1,22 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useApolloClient } from '@apollo/client'
 import Authors from './components/Authors'
 import Books from './components/Books'
 import NewBook from './components/NewBook'
 import LoginForm from './components/LoginForm'
+import Recommend from './components/Recommend'
 
 const App = () => {
   const [page, setPage] = useState('authors')
   const [token, setToken] = useState(null)
   const client = useApolloClient()
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('user-token')
+    if (savedToken) {
+      setToken(savedToken)
+    }
+  }, [])
 
   const logout = () => {
     setToken(null)
@@ -17,7 +25,7 @@ const App = () => {
   }
 
   const navLinks = () => {
-    const loggedIn = localStorage.getItem('user-token') !== null
+    const loggedIn = token !== null
 
     return (
       <div>
@@ -25,6 +33,9 @@ const App = () => {
         <button onClick={() => setPage('books')}>books</button>
         {loggedIn
           ? <button onClick={() => setPage('add')}>add book</button>
+          : null}
+        {loggedIn
+          ? <button onClick={() => setPage('recommend')}>recommend</button>
           : null}
         {loggedIn
           ? <button onClick={logout}>logout</button>
@@ -50,6 +61,11 @@ const App = () => {
 
       <NewBook
         show={page === 'add'}
+      />
+
+      <Recommend
+        show={page === 'recommend'}
+        userToken={token}
       />
 
       <LoginForm
