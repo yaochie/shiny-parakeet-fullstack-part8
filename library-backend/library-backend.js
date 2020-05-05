@@ -117,11 +117,6 @@ const resolvers = {
       return Author.findOne({ _id: root.author })
     }
   },
-  Author: {
-    bookCount: async (root) => {
-      return await Book.countDocuments({ author: root._id })
-    }
-  },
   Mutation: {
     addBook: async (root, args, { currentUser }) => {
       if (!currentUser) {
@@ -131,7 +126,7 @@ const resolvers = {
       let author = await Author.findOne({ name: args.author })
       if (!author) {
         // add author
-        author = new Author({ name: args.author })
+        author = new Author({ name: args.author, bookCount: 1 })
         console.log('new author', author)
         try {
           await author.save()
@@ -140,6 +135,9 @@ const resolvers = {
             invalidArgs: args
           })
         }
+      } else {
+        author.bookCount += 1
+        await author.save()
       }
 
       const book = new Book({ ...args, author: author })
@@ -164,6 +162,7 @@ const resolvers = {
 
       const author = await Author.findOne({ name: args.name })
       if (!author) {
+        console.log('couldn\'t find author')
         return null
       }
 
