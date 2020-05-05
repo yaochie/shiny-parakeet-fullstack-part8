@@ -23,6 +23,7 @@ query {
   allBooks {
     title
     published
+    genres
     author {
       name
     }
