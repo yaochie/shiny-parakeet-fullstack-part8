@@ -1,4 +1,6 @@
-const { ApolloServer, UserInputError, gql, AuthenticationError } = require('apollo-server')
+const {
+  ApolloServer, UserInputError, gql, AuthenticationError, PubSub
+} = require('apollo-server')
 const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
 
@@ -7,12 +9,15 @@ const Book = require('./models/book')
 const User = require('./models/user')
 
 mongoose.set('useFindAndModify', false)
+mongoose.set('useUnifiedTopology', true)
+mongoose.set('useCreateIndex', true)
 
 const MONGODB_URI = 'mongodb+srv://fullstack:Ug3241eDETzm1RLH@phonebook-cluster-9acgb.mongodb.net/library-graphql?retryWrites=true'
 
 const JWT_SECRET = 'SECRET_KEY'
 
 console.log('connecting to', MONGODB_URI)
+const pubsub = new PubSub()
 
 mongoose.connect(MONGODB_URI, { useNewUrlParser: true })
   .then(() => {
@@ -75,6 +80,10 @@ const typeDefs = gql`
       username: String!
       password: String!
     ): Token
+  }
+
+  type Subscription {
+    bookAdded: Book!
   }
 `
 
@@ -144,6 +153,8 @@ const resolvers = {
         })
       }
 
+      pubsub.publish('BOOK_ADDED', { bookAdded: book })
+
       return book
     },
     editAuthor: async (root, args, { currentUser }) => {
@@ -193,6 +204,11 @@ const resolvers = {
 
       return { value: jwt.sign(userForToken, JWT_SECRET) }
     }
+  },
+  Subscription: {
+    bookAdded: {
+      subscribe: () => pubsub.asyncIterator(['BOOK_ADDED'])
+    }
   }
 }
 
@@ -202,15 +218,20 @@ const server = new ApolloServer({
   context: async ({ req }) => {
     const auth = req ? req.headers.authorization : null
     if (auth && auth.toLowerCase().startsWith('bearer ')) {
-      const decodedToken = jwt.verify(
-        auth.substring(7), JWT_SECRET
-      )
-      const currentUser = await User.findById(decodedToken.id)
-      return { currentUser }
+      try {
+        const decodedToken = jwt.verify(
+          auth.substring(7), JWT_SECRET
+        )
+        const currentUser = await User.findById(decodedToken.id)
+        return { currentUser }
+      } catch(error) {
+        console.error('invalid user-token set')
+      }
     }
   }
 })
 
-server.listen().then(({ url }) => {
+server.listen().then(({ url, subscriptionsUrl }) => {
   console.log(`Server ready at ${url}`)
+  console.log(`Subscriptions ready at ${subscriptionsUrl}`)
 })
