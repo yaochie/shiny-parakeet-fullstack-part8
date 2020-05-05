@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { useLazyQuery, useQuery } from '@apollo/client'
+import { useLazyQuery, useQuery, useApolloClient, useSubscription } from '@apollo/client'
 
-import { ALL_BOOKS, ALL_GENRES } from '../queries'
+import { ALL_BOOKS, ALL_GENRES, BOOK_ADDED } from '../queries'
 
 const Books = (props) => {
   const [filter, setFilter] = useState('')
@@ -9,6 +9,7 @@ const Books = (props) => {
   const [genres, setGenres] = useState([])
   const genreResult = useQuery(ALL_GENRES)
   const [getSomeBooks, bookResult] = useLazyQuery(ALL_BOOKS)
+  const client = useApolloClient()
 
   useEffect(() => {
     if (genreResult.data) {
@@ -29,6 +30,32 @@ const Books = (props) => {
       setBooks(bookResult.data.allBooks)
     }
   }, [bookResult.data])
+
+  const updateCacheWith = (addedBook) => {
+    const includedIn = (set, object) =>
+      set.map(b => b.id).includes(object.id)
+
+    const data = client.readQuery({ query: ALL_BOOKS })
+    if (!includedIn(data.allBooks, addedBook)) {
+      client.writeQuery({
+        query: ALL_BOOKS,
+        data: {
+          ...data,
+          allBooks: [ ...data.allBooks, addedBook ]
+        }
+      })
+    }
+  }
+
+  useSubscription(BOOK_ADDED, {
+    onSubscriptionData: ({ subscriptionData }) => {
+      const addedBook = subscriptionData.data.bookAdded
+      const title = addedBook.title
+      const author = addedBook.author.name
+      console.log(`added new book ${title} by ${author}!`)
+      updateCacheWith(addedBook)
+    }
+  })
 
   if (!props.show) {
     return null
